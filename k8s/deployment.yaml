@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docuquery-deployment
+  namespace: docuquery-ai
+  labels:
+    app: docuquery-app
+    tier: frontend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: docuquery-app
+  template:
+    metadata:
+      labels:
+        app: docuquery-app
+    spec:
+      containers:
+      - name: docuquery-container
+        image: docuquery-rag-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8501
+          name: http
+        envFrom:
+        - configMapRef:
+            name: docuquery-config
+        - secretRef:
+            name: docuquery-secret
+            optional: true
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3

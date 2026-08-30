@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: docuquery-service
+  namespace: docuquery-ai
+  labels:
+    app: docuquery-app
+spec:
+  type: ClusterIP
+  selector:
+    app: docuquery-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8501
+    name: http

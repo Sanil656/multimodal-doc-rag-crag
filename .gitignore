@@ -1,0 +1,27 @@
+# Environment variables & API keys
+.env
+.env.local
+
+# Vector database local storage
+chroma_db/
+chat_history/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
