@@ -92,7 +92,7 @@ graph TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/docuquery-ai.git
+git clone https://github.com/Sanil656/multimodal-doc-rag-crag
 cd docuquery-ai
 
 # Create & activate virtual environment
