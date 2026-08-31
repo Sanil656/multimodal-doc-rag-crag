@@ -10,7 +10,7 @@
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Vision_2.0-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-HPA_Autoscaling-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 
 <p align="center">
   <b>A state-of-the-art GenAI platform combining Multi-Page Document Ingestion, Corrective RAG (CRAG), Live Yahoo Finance Feeds, and Multimodal Vision Pattern Verification against Technical Reference Books.</b>
