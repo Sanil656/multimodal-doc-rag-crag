@@ -153,6 +153,33 @@ def analyze_and_compare_image_with_book(
             # Fallback if standard model doesn't support images directly
             visual_analysis_text = f"Visual inspection performed. Error with Ollama vision model: {str(e)}. Please ensure 'llama3.2-vision' or 'llava' is pulled in Ollama."
 
+    elif provider == "groq":
+        from langchain_groq import ChatGroq
+        groq_api_key = api_key or os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+            raise ValueError("Groq API Key is required for Groq models.")
+        
+        # Use vision-capable model for Groq image analysis
+        groq_vision_model = model_name if ("vision" in str(model_name).lower()) else "llama-3.2-11b-vision-preview"
+        vision_llm = ChatGroq(
+            model_name=groq_vision_model,
+            groq_api_key=groq_api_key,
+            temperature=0.2,
+        )
+
+        vision_message = HumanMessage(
+            content=[
+                {"type": "text", "text": VISUAL_ANALYSIS_PROMPT},
+                {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{b64_image}"}},
+            ]
+        )
+        try:
+            visual_analysis_res = vision_llm.invoke([vision_message])
+            visual_analysis_text = visual_analysis_res.content
+        except Exception as e:
+            # Fallback
+            visual_analysis_text = f"Visual inspection performed with Groq. Error: {str(e)}"
+
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 

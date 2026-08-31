@@ -131,6 +131,18 @@ st.markdown("""
         border: 1px solid rgba(249, 115, 22, 0.3);
         margin-right: 6px;
     }
+    .badge-groq {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 14px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        margin-right: 6px;
+    }
     .feature-card {
         background: rgba(128, 128, 128, 0.05);
         border: 1px solid rgba(128, 128, 128, 0.15);
@@ -173,11 +185,16 @@ with st.sidebar:
     # LLM Provider Selection
     llm_provider = st.radio(
         "🧠 LLM Engine",
-        options=["Local Ollama", "Google Gemini"],
+        options=["Local Ollama", "Google Gemini", "Groq (Ultra-Fast LPU)"],
         index=0,
-        help="Choose between 100% offline local Ollama models or cloud Google Gemini.",
+        help="Choose between 100% offline local Ollama, cloud Google Gemini, or ultra-fast Groq LPU inference.",
     )
-    provider_key = "ollama" if llm_provider == "Local Ollama" else "gemini"
+    if llm_provider == "Local Ollama":
+        provider_key = "ollama"
+    elif llm_provider == "Google Gemini":
+        provider_key = "gemini"
+    else:
+        provider_key = "groq"
 
     api_key = None
     ollama_base_url = "http://localhost:11434"
@@ -199,7 +216,8 @@ with st.sidebar:
             model_name = st.text_input("Custom Ollama Model Name", value="llama3")
         else:
             model_name = model_choice
-    else:
+
+    elif provider_key == "gemini":
         env_api_key = os.getenv("GOOGLE_API_KEY", "")
         api_key_input = st.text_input(
             "🔑 Gemini API Key",
@@ -213,6 +231,34 @@ with st.sidebar:
             options=["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
             index=0,
         )
+
+    else:  # Groq Provider
+        env_groq_key = os.getenv("GROQ_API_KEY", "")
+        groq_key_input = st.text_input(
+            "⚡ Groq API Key",
+            value=env_groq_key,
+            type="password",
+            help="Get a free ultra-fast key from https://console.groq.com/ or set GROQ_API_KEY in .env",
+        )
+        api_key = groq_key_input.strip() if groq_key_input else env_groq_key
+        groq_model_choice = st.selectbox(
+            "Groq Model",
+            options=[
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant",
+                "deepseek-r1-distill-llama-70b",
+                "mixtral-8x7b-32768",
+                "llama-3.2-11b-vision-preview",
+                "llama-3.2-90b-vision-preview",
+                "Custom",
+            ],
+            index=0,
+            help="Flagship llama-3.3-70b, deep reasoning DeepSeek-R1, or Llama 3.2 Vision.",
+        )
+        if groq_model_choice == "Custom":
+            model_name = st.text_input("Custom Groq Model Name", value="llama-3.3-70b-versatile")
+        else:
+            model_name = groq_model_choice
 
     st.markdown("---")
 
@@ -271,12 +317,19 @@ with st.sidebar:
                 index=0,
                 help="Ollama embeddings (`nomic-embed-text`) or local HuggingFace (`all-MiniLM-L6-v2`).",
             )
-        else:
+        elif provider_key == "gemini":
             embedding_provider = st.selectbox(
                 "Embedding Provider",
                 options=["gemini", "huggingface"],
                 index=0,
                 help="Gemini embeddings or local HuggingFace.",
+            )
+        else:
+            embedding_provider = st.selectbox(
+                "Embedding Provider",
+                options=["huggingface", "gemini", "ollama"],
+                index=0,
+                help="Local HuggingFace embeddings (`all-MiniLM-L6-v2`), Gemini, or Ollama.",
             )
 
     st.markdown("---")
@@ -393,8 +446,8 @@ with tab1:
         with col2:
             st.markdown("""
             <div class="feature-card">
-                <h4>🦙 Local Ollama & Gemini</h4>
-                <p style="font-size:0.9rem; opacity:0.85;">Run 100% locally and privately with <b>Ollama</b> (Llama 3, DeepSeek, Mistral) or in the cloud with <b>Google Gemini</b>.</p>
+                <h4>⚡ Groq, Ollama & Gemini</h4>
+                <p style="font-size:0.9rem; opacity:0.85;">Choose ultra-fast <b>Groq LPU</b> (500+ tokens/sec), 100% private <b>Local Ollama</b>, or <b>Google Gemini</b>.</p>
             </div>
             """, unsafe_allow_html=True)
         with col3:
@@ -408,7 +461,12 @@ with tab1:
     else:
         meta = st.session_state.doc_metadata
         crag_tag = '<span class="badge-crag">CRAG: Active</span>' if enable_crag else '<span class="badge">Standard RAG</span>'
-        prov_tag = f'<span class="badge-ollama">Ollama: {model_name}</span>' if provider_key == "ollama" else f'<span class="badge">Gemini: {model_name}</span>'
+        if provider_key == "ollama":
+            prov_tag = f'<span class="badge-ollama">Ollama: {model_name}</span>'
+        elif provider_key == "groq":
+            prov_tag = f'<span class="badge-groq">Groq: {model_name}</span>'
+        else:
+            prov_tag = f'<span class="badge">Gemini: {model_name}</span>'
         
         st.markdown(
             f"""
@@ -468,6 +526,8 @@ with tab1:
         if user_query:
             if provider_key == "gemini" and not api_key:
                 st.error("⚠️ Please enter a Google API Key in the sidebar.")
+            elif provider_key == "groq" and not api_key:
+                st.error("⚠️ Please enter a Groq API Key in the sidebar (get a free key at https://console.groq.com/).")
             else:
                 # 1. User message
                 st.session_state.chat_history.append({"role": "user", "content": user_query})
@@ -664,6 +724,8 @@ with tab2:
                 st.warning("⚠️ Please fetch a live chart or upload an image first.")
             elif provider_key == "gemini" and not api_key:
                 st.error("⚠️ Please enter a Google API Key in the sidebar.")
+            elif provider_key == "groq" and not api_key:
+                st.error("⚠️ Please enter a Groq API Key in the sidebar.")
             else:
                 combined_instructions = f"{market_stats_text}\n{custom_analysis_prompt}".strip()
                 with st.spinner("🔍 Inspecting visual chart candlesticks, retrieving book rules across library, and synthesizing comparison..."):

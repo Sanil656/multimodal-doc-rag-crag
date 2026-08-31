@@ -8,9 +8,10 @@
 [![LangChain](https://img.shields.io/badge/LangChain-v0.2+-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local_LLMs-000000?style=for-the-badge&logo=ollama&logoColor=white)](https://ollama.com/)
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Vision_2.0-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
+[![Groq](https://img.shields.io/badge/Groq-LPU_Ultra_Fast-F55036?style=for-the-badge&logo=groq&logoColor=white)](https://groq.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-HPA_Autoscaling-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-
+[![CI/CD Pipeline](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/)
 
 <p align="center">
   <b>A state-of-the-art GenAI platform combining Multi-Page Document Ingestion, Corrective RAG (CRAG), Live Yahoo Finance Feeds, and Multimodal Vision Pattern Verification against Technical Reference Books.</b>
@@ -205,6 +206,7 @@ kubectl port-forward svc/docuquery-service 8501:80 -n docuquery-ai
 | **Frontend UI** | `Streamlit 1.57+` | Dark/Light adaptive chat UI, interactive charts & streaming |
 | **LLM Orchestration** | `LangChain v0.2+` | RAG, CRAG chains, prompt templates & output parsers |
 | **Local LLMs** | `Ollama` / `langchain-ollama` | 100% offline private execution (`llama3`, `mistral`, `deepseek-r1`) |
+| **Ultra-Fast LPU** | `Groq` / `langchain-groq` | 500+ tokens/sec LPU inference (`llama-3.3-70b`, `deepseek-r1`, `llama-3.2-vision`) |
 | **Cloud Multimodal** | `Google Gemini 1.5/2.0 Flash` | Fast multimodal vision analysis & high-speed reasoning |
 | **Vector Database** | `ChromaDB` | Persistent vector indexing with page-level metadata |
 | **Market Data** | `yfinance` & `plotly` | Live stock/crypto OHLCV data & interactive candlestick charts |
@@ -214,7 +216,6 @@ kubectl port-forward svc/docuquery-service 8501:80 -n docuquery-ai
 | **Orchestration** | `Kubernetes (K8s)` & `Kustomize` | Production autoscaling (HPA), health checks, and Ingress |
 
 ---
-
 
 <div align="center">
   <b>Built with ❤️ for Advanced Multimodal Document AI & Algorithmic Technical Analysis.</b>

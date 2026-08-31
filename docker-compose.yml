@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   docuquery-app:
     build:
@@ -11,13 +9,14 @@ services:
       - "8501:8501"
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     extra_hosts:
       # Allows Docker container to communicate with Ollama running on your host machine
       - "host.docker.internal:host-gateway"
     volumes:
-      # Optional: Mount .env file if available
       - ./.env:/app/.env:ro
+      - ./chroma_db:/app/chroma_db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s

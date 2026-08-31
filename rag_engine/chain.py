@@ -77,6 +77,22 @@ def get_llm(
             temperature=temperature,
             base_url=base_url,
         )
+    elif provider == "groq":
+        try:
+            from langchain_groq import ChatGroq
+        except ImportError:
+            raise ImportError("Please install langchain-groq via 'pip install langchain-groq groq'")
+        api_key = api_key or os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "Groq API Key is required. Please provide it in the UI or set GROQ_API_KEY in your .env file. "
+                "Get a free API key at https://console.groq.com/"
+            )
+        return ChatGroq(
+            model_name=model_name or "llama-3.3-70b-versatile",
+            temperature=temperature,
+            groq_api_key=api_key,
+        )
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
 

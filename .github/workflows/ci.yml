@@ -1,0 +1,77 @@
+name: DocuQuery AI CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # -------------------------------------------------------------
+  # JOB 1: CODE LINTING, SYNTAX CHECK & UNIT TESTS
+  # -------------------------------------------------------------
+  test:
+    name: 🧪 Run Automated Tests & Syntax Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🔍 Compile & Validate Python Syntax
+        run: |
+          python -m py_compile app.py test_pipeline.py rag_engine/__init__.py rag_engine/document_loader.py rag_engine/text_splitter.py rag_engine/vector_store.py rag_engine/chain.py rag_engine/crag.py rag_engine/vision_comparator.py rag_engine/market_data.py
+
+      - name: ⚡ Run RAG & Chunking Pipeline Tests
+        run: |
+          python test_pipeline.py
+
+  # -------------------------------------------------------------
+  # JOB 2: DOCKER CONTAINERIZATION VERIFICATION
+  # -------------------------------------------------------------
+  docker-build:
+    name: 🐳 Test Docker Container Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: docuquery-rag-app:ci-test
+
+  # -------------------------------------------------------------
+  # JOB 3: KUBERNETES MANIFEST VALIDATION
+  # -------------------------------------------------------------
+  k8s-validate:
+    name: ☸️ Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔍 Validate K8s Kustomize Stack
+        run: |
+          kubectl kustomize k8s/
