@@ -215,10 +215,6 @@ kubectl port-forward svc/docuquery-service 8501:80 -n docuquery-ai
 
 ---
 
-## 📄 License
-This project is open-source and licensed under the **MIT License**. See the `LICENSE` file for details.
-
----
 
 <div align="center">
   <b>Built with ❤️ for Advanced Multimodal Document AI & Algorithmic Technical Analysis.</b>
