@@ -31,7 +31,7 @@ jobs:
 
       - name: 🔍 Compile & Validate Python Syntax
         run: |
-          python -m py_compile app.py test_pipeline.py rag_engine/__init__.py rag_engine/document_loader.py rag_engine/text_splitter.py rag_engine/vector_store.py rag_engine/chain.py rag_engine/crag.py rag_engine/vision_comparator.py rag_engine/market_data.py
+          python -m py_compile app.py test_pipeline.py rag_engine/__init__.py rag_engine/document_loader.py rag_engine/text_splitter.py rag_engine/vector_store.py rag_engine/chain.py rag_engine/crag_graph.py
 
       - name: ⚡ Run RAG & Chunking Pipeline Tests
         run: |
