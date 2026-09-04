@@ -1,5 +1,5 @@
 """
-RAG Engine package for multi-page document processing, LangGraph CRAG, and vector storage.
+RAG Engine package for multi-page document processing, LangGraph CRAG, Token Optimization, and vector storage.
 """
 
 from .document_loader import load_document_from_bytes, load_document_from_path
@@ -13,6 +13,12 @@ from .vector_store import (
 )
 from .chain import create_rag_chain, format_chat_history, get_llm
 from .crag_graph import create_crag_graph, stream_langgraph_crag_pipeline, GraphState
+from .token_optimizer import (
+    count_tokens,
+    calculate_cost,
+    compress_and_prune_documents,
+    evaluate_groundedness,
+)
 
 __all__ = [
     "load_document_from_bytes",
@@ -29,4 +35,8 @@ __all__ = [
     "create_crag_graph",
     "stream_langgraph_crag_pipeline",
     "GraphState",
+    "count_tokens",
+    "calculate_cost",
+    "compress_and_prune_documents",
+    "evaluate_groundedness",
 ]
