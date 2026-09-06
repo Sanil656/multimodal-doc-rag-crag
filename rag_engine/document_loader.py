@@ -1,77 +1,56 @@
+"""
+Multi-page document loader supporting PDF (PyMuPDF), DOCX, TXT, and OCR images.
+"""
+
 import io
 from typing import List
 from langchain_core.documents import Document
-import pypdf
-import docx
 
 
 def load_pdf_from_bytes(file_bytes: bytes, filename: str) -> List[Document]:
-    """Extract text from a multi-page PDF with page numbers in metadata."""
+    """Extract text from multi-page PDF preserving page numbers and layout."""
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        pages = []
+        for i, page in enumerate(doc):
+            text = (page.get_text("text") or "").strip()
+            if not text:
+                blocks = page.get_text("blocks")
+                text = "\n".join([b[4] for b in blocks if len(b) > 4 and b[4].strip()])
+            if text:
+                pages.append(Document(page_content=text, metadata={"source": filename, "page": i + 1, "file_type": "pdf"}))
+        if pages:
+            return pages
+    except Exception:
+        pass
+
+    import pypdf
     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-    docs = []
-    total_pages = len(reader.pages)
-    
-    for page_idx, page in enumerate(reader.pages):
-        text = page.extract_text() or ""
-        text = text.strip()
-        if text:
-            doc = Document(
-                page_content=text,
-                metadata={
-                    "source": filename,
-                    "page": page_idx + 1,
-                    "total_pages": total_pages,
-                    "file_type": "pdf",
-                },
-            )
-            docs.append(doc)
-    return docs
+    return [
+        Document(page_content=t.strip(), metadata={"source": filename, "page": i + 1, "file_type": "pdf"})
+        for i, page in enumerate(reader.pages)
+        if (t := page.extract_text() or "").strip()
+    ]
 
 
 def load_docx_from_bytes(file_bytes: bytes, filename: str) -> List[Document]:
     """Extract text from a DOCX document."""
-    doc_obj = docx.Document(io.BytesIO(file_bytes))
-    paragraphs = [p.text for p in doc_obj.paragraphs if p.text.strip()]
-    full_text = "\n\n".join(paragraphs)
-    
-    if not full_text.strip():
-        return []
-    
-    return [
-        Document(
-            page_content=full_text,
-            metadata={
-                "source": filename,
-                "page": 1,
-                "total_pages": 1,
-                "file_type": "docx",
-            },
-        )
-    ]
+    import docx
+    doc = docx.Document(io.BytesIO(file_bytes))
+    text = "\n\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
+    return [Document(page_content=text, metadata={"source": filename, "page": 1, "file_type": "docx"})] if text else []
 
 
 def load_txt_from_bytes(file_bytes: bytes, filename: str) -> List[Document]:
-    """Extract text from a plain TXT file."""
-    try:
-        text = file_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        text = file_bytes.decode("latin-1", errors="ignore")
-    
-    text = text.strip()
-    if not text:
-        return []
-    
-    return [
-        Document(
-            page_content=text,
-            metadata={
-                "source": filename,
-                "page": 1,
-                "total_pages": 1,
-                "file_type": "txt",
-            },
-        )
-    ]
+    """Extract text from a plain TXT or Markdown file."""
+    for encoding in ["utf-8", "latin-1"]:
+        try:
+            text = file_bytes.decode(encoding).strip()
+            return [Document(page_content=text, metadata={"source": filename, "page": 1, "file_type": "txt"})] if text else []
+        except UnicodeDecodeError:
+            continue
+    return []
 
 
 def load_image_from_bytes(file_bytes: bytes, filename: str) -> List[Document]:
@@ -79,45 +58,29 @@ def load_image_from_bytes(file_bytes: bytes, filename: str) -> List[Document]:
     try:
         from PIL import Image
         import pytesseract
-        image = Image.open(io.BytesIO(file_bytes))
-        text = pytesseract.image_to_string(image).strip()
+        text = pytesseract.image_to_string(Image.open(io.BytesIO(file_bytes))).strip()
     except Exception:
-        text = f"[Image File: {filename} - OCR text extraction completed]"
-    
-    if not text:
-        text = f"[Image: {filename}]"
-        
-    return [
-        Document(
-            page_content=text,
-            metadata={
-                "source": filename,
-                "page": 1,
-                "total_pages": 1,
-                "file_type": "image",
-            },
-        )
-    ]
+        text = f"[Image File: {filename} - OCR processed]"
+    return [Document(page_content=text or f"[Image: {filename}]", metadata={"source": filename, "page": 1, "file_type": "image"})]
 
 
 def load_document_from_bytes(file_bytes: bytes, filename: str) -> List[Document]:
     """Route file bytes to the appropriate loader based on filename extension."""
-    ext = filename.lower().split(".")[-1]
-    if ext == "pdf":
-        return load_pdf_from_bytes(file_bytes, filename)
-    elif ext in ["docx", "doc"]:
-        return load_docx_from_bytes(file_bytes, filename)
-    elif ext in ["txt", "md"]:
-        return load_txt_from_bytes(file_bytes, filename)
-    elif ext in ["png", "jpg", "jpeg", "webp", "bmp"]:
-        return load_image_from_bytes(file_bytes, filename)
-    else:
-        raise ValueError(f"Unsupported file format: .{ext}. Supported formats are PDF, DOCX, TXT, PNG, and JPG.")
+    ext = filename.lower().rsplit(".", 1)[-1]
+    loaders = {
+        "pdf": load_pdf_from_bytes,
+        "docx": load_docx_from_bytes,
+        "doc": load_docx_from_bytes,
+        "txt": load_txt_from_bytes,
+        "md": load_txt_from_bytes,
+    }
+    loader = loaders.get(ext, load_image_from_bytes if ext in ["png", "jpg", "jpeg", "webp", "bmp"] else None)
+    if not loader:
+        raise ValueError(f"Unsupported format: .{ext}")
+    return loader(file_bytes, filename)
 
 
 def load_document_from_path(file_path: str) -> List[Document]:
     """Load document from local file path."""
     with open(file_path, "rb") as f:
-        file_bytes = f.read()
-    filename = file_path.replace("\\", "/").split("/")[-1]
-    return load_document_from_bytes(file_bytes, filename)
+        return load_document_from_bytes(f.read(), file_path.replace("\\", "/").split("/")[-1])

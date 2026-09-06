@@ -1,5 +1,5 @@
 """
-RAG Engine package for multi-page document processing, LangGraph CRAG, Token Optimization, and vector storage.
+RAG Engine package for multi-page document processing, LangGraph CRAG, Token Optimization, and RAG Triad Evaluation.
 """
 
 from .document_loader import load_document_from_bytes, load_document_from_path
@@ -18,6 +18,13 @@ from .token_optimizer import (
     calculate_cost,
     compress_and_prune_documents,
     evaluate_groundedness,
+)
+from .evaluator import (
+    evaluate_rag_triad,
+    evaluate_context_relevance,
+    evaluate_faithfulness,
+    evaluate_answer_relevance,
+    generate_synthetic_benchmark_dataset,
 )
 
 __all__ = [
@@ -39,4 +46,9 @@ __all__ = [
     "calculate_cost",
     "compress_and_prune_documents",
     "evaluate_groundedness",
+    "evaluate_rag_triad",
+    "evaluate_context_relevance",
+    "evaluate_faithfulness",
+    "evaluate_answer_relevance",
+    "generate_synthetic_benchmark_dataset",
 ]
