@@ -76,7 +76,8 @@ with st.sidebar:
     
     # 2. Document Upload
     uploaded_files = st.file_uploader("Upload Documents (PDF, Word, TXT, Images)", type=["pdf", "docx", "txt", "md", "png", "jpg"], accept_multiple_files=True)
-    enable_crag = st.toggle("⚡ Enable LangGraph CRAG & Token Pruning", value=True)
+    enable_crag = st.toggle("⚡ Enable LangGraph CRAG", value=True)
+    enable_web = st.toggle("🌐 Enable Web Search Comparison", value=True, help="Searches the live web to compare or enrich context when documents lack details.")
     
     with st.expander("⚙️ Advanced Parameters"):
         temp = st.slider("Temperature", 0.0, 1.0, 0.2, 0.05)
@@ -160,7 +161,8 @@ else:
             if ci := msg.get("crag_info"):
                 cost = f"${ci.get('estimated_cost_usd', 0.0):.5f}" if ci.get('estimated_cost_usd', 0.0) > 0 else "Free ($0.00)"
                 savings = f" | 📉 {ci.get('token_savings_pct', 0)}% Saved" if ci.get('token_savings_pct', 0) > 0 else ""
-                st.markdown(f'<div class="token-card"><span>🪙 {ci.get("total_tokens", 0)} Toks ({ci.get("input_tokens", 0)} in / {ci.get("output_tokens", 0)} out)</span><span>💰 {cost}</span><span>🛡️ {ci.get("groundedness_score", 100)}% Grounded{savings}</span></div>', unsafe_allow_html=True)
+                web_tag = " | 🌐 Web Augmented" if ci.get('web_search_used') else ""
+                st.markdown(f'<div class="token-card"><span>🪙 {ci.get("total_tokens", 0)} Toks ({ci.get("input_tokens", 0)} in / {ci.get("output_tokens", 0)} out)</span><span>💰 {cost}</span><span>🛡️ {ci.get("groundedness_score", 100)}% Grounded{savings}{web_tag}</span></div>', unsafe_allow_html=True)
             if srcs := msg.get("sources"):
                 with st.expander(f"📖 View Referenced Sources ({len(srcs)} chunks)", expanded=False):
                     for idx, s in enumerate(srcs):
@@ -182,12 +184,15 @@ else:
 
                 if enable_crag:
                     with st.spinner("⚡ Executing LangGraph CRAG & Token Pruning..."):
-                        stream, source_docs, crag_stats = stream_langgraph_crag_pipeline(user_query, retriever, hist, provider, model_name, temp, api_key, base_url)
+                        stream, source_docs, crag_stats = stream_langgraph_crag_pipeline(
+                            user_query, retriever, hist, provider, model_name, temp, api_key, base_url, enable_web_search=enable_web
+                        )
                     answer_text = st.write_stream(stream)
                     if crag_stats:
                         cost = f"${crag_stats.get('estimated_cost_usd', 0.0):.5f}" if crag_stats.get('estimated_cost_usd', 0.0) > 0 else "Free ($0.00)"
                         savings = f" | 📉 {crag_stats.get('token_savings_pct', 0)}% Saved" if crag_stats.get('token_savings_pct', 0) > 0 else ""
-                        st.markdown(f'<div class="token-card"><span>🪙 {crag_stats.get("total_tokens", 0)} Toks ({crag_stats.get("input_tokens", 0)} in / {crag_stats.get("output_tokens", 0)} out)</span><span>💰 {cost}</span><span>🛡️ {crag_stats.get("groundedness_score", 100)}% Grounded{savings}</span></div>', unsafe_allow_html=True)
+                        web_tag = " | 🌐 Web Augmented" if crag_stats.get('web_search_used') else ""
+                        st.markdown(f'<div class="token-card"><span>🪙 {crag_stats.get("total_tokens", 0)} Toks ({crag_stats.get("input_tokens", 0)} in / {crag_stats.get("output_tokens", 0)} out)</span><span>💰 {cost}</span><span>🛡️ {crag_stats.get("groundedness_score", 100)}% Grounded{savings}{web_tag}</span></div>', unsafe_allow_html=True)
                 else:
                     llm = get_llm(provider, model_name, temp, api_key, base_url)
                     with st.spinner("Generating grounded answer..."):

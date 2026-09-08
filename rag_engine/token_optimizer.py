@@ -36,18 +36,30 @@ def calculate_cost(input_tokens: int, output_tokens: int, model_name: str = "gem
     return ((input_tokens * pricing["in"]) + (output_tokens * pricing["out"])) / 1_000_000
 
 
-def prune_chunk_sentences(text: str, query: str, max_sentences: int = 4) -> str:
-    """Extract top query-relevant sentences from chunk to eliminate fluff."""
-    sentences = re.split(r'(?<=[.?!])\s+', text.strip())
+def prune_chunk_sentences(text: str, query: str, max_sentences: int = 8) -> str:
+    """Extract top query-relevant sentences from chunk while preserving tables and lists."""
+    if len(text.strip()) < 400 or "\n" in text and ("-" in text or ":" in text or "|" in text):
+        # Preserve tabular, structured, or concise chunks intact
+        return text
+
+    sentences = re.split(r'(?<=[.?!])\s+|\n\n+', text.strip())
     if len(sentences) <= max_sentences:
         return text
     q_words = set(re.findall(r'\w+', query.lower()))
-    scored = sorted([(len(q_words.intersection(set(re.findall(r'\w+', s.lower())))) + (0.2 if i == 0 else 0), i, s) for i, s in enumerate(sentences)], key=lambda x: x[0], reverse=True)
+    scored = sorted([
+        (len(q_words.intersection(set(re.findall(r'\w+', s.lower())))) + (0.5 if i == 0 else 0), i, s)
+        for i, s in enumerate(sentences)
+    ], key=lambda x: x[0], reverse=True)
+    
+    # If no keyword overlap (e.g. cross-lingual query or numbers), keep original leading sentences
+    if scored[0][0] <= 0.5:
+        return " ".join(sentences[:max_sentences])
+        
     return " ".join(s[2] for s in sorted(scored[:max_sentences], key=lambda x: x[1]))
 
 
-def compress_and_prune_documents(docs: List[Document], query: str, max_token_budget: int = 1400) -> Tuple[List[Document], int, int, float]:
-    """Compress retrieved context to save 40-70% prompt tokens."""
+def compress_and_prune_documents(docs: List[Document], query: str, max_token_budget: int = 3000) -> Tuple[List[Document], int, int, float]:
+    """Compress retrieved context intelligently without destroying structured data."""
     raw_tokens = count_tokens(" ".join(d.page_content for d in docs))
     pruned, cur_tokens = [], 0
     for d in docs:
