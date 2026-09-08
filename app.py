@@ -38,8 +38,18 @@ with st.sidebar:
     provider = "groq" if "Groq" in llm_choice else ("ollama" if "Ollama" in llm_choice else "gemini")
     
     api_key, base_url, model_name = None, "http://localhost:11434", ""
+    env_groq = os.getenv("GROQ_API_KEY", "").strip()
+    env_gemini = os.getenv("GOOGLE_API_KEY", "").strip()
+
     if provider == "groq":
-        api_key = st.text_input("⚡ Groq API Key", value=os.getenv("GROQ_API_KEY", ""), type="password")
+        user_groq = st.text_input(
+            "⚡ Groq API Key",
+            value="",
+            placeholder="✅ Configured via Secrets" if env_groq else "Enter Groq API Key (gsk_...)",
+            type="password",
+            help="Your API key stays safe on the server and is never exposed in browser HTML."
+        )
+        api_key = user_groq.strip() if user_groq.strip() else env_groq
         model_name = st.selectbox("Model", [
             "openai/gpt-oss-120b",
             "openai/gpt-oss-20b",
@@ -49,7 +59,14 @@ with st.sidebar:
             "llama-3.1-8b-instant"
         ])
     elif provider == "gemini":
-        api_key = st.text_input("🔑 Gemini API Key", value=os.getenv("GOOGLE_API_KEY", ""), type="password")
+        user_gemini = st.text_input(
+            "🔑 Gemini API Key",
+            value="",
+            placeholder="✅ Configured via Secrets" if env_gemini else "Enter Gemini API Key (AIzaSy...)",
+            type="password",
+            help="Your API key stays safe on the server and is never exposed in browser HTML."
+        )
+        api_key = user_gemini.strip() if user_gemini.strip() else env_gemini
         model_name = st.selectbox("Model", ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"])
     else:
         base_url = st.text_input("🌐 Ollama URL", value=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
