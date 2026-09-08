@@ -21,9 +21,8 @@ MODEL_PRICING = {
 
 
 def count_tokens(text: str) -> int:
-    """Accurate BPE token counter."""
-    if not text:
-        return 0
+    """Accurate BPE token counter with whitespace fallback."""
+    if not text: return 0
     try:
         return len(tiktoken.get_encoding("cl100k_base").encode(text))
     except Exception:
@@ -38,23 +37,15 @@ def calculate_cost(input_tokens: int, output_tokens: int, model_name: str = "gem
 
 def prune_chunk_sentences(text: str, query: str, max_sentences: int = 8) -> str:
     """Extract top query-relevant sentences from chunk while preserving tables and lists."""
-    if len(text.strip()) < 400 or "\n" in text and ("-" in text or ":" in text or "|" in text):
-        # Preserve tabular, structured, or concise chunks intact
+    if len(text.strip()) < 400 or ("\n" in text and any(c in text for c in ["-", ":", "|"])):
         return text
-
     sentences = re.split(r'(?<=[.?!])\s+|\n\n+', text.strip())
     if len(sentences) <= max_sentences:
         return text
     q_words = set(re.findall(r'\w+', query.lower()))
-    scored = sorted([
-        (len(q_words.intersection(set(re.findall(r'\w+', s.lower())))) + (0.5 if i == 0 else 0), i, s)
-        for i, s in enumerate(sentences)
-    ], key=lambda x: x[0], reverse=True)
-    
-    # If no keyword overlap (e.g. cross-lingual query or numbers), keep original leading sentences
+    scored = sorted([(len(q_words.intersection(set(re.findall(r'\w+', s.lower())))) + (0.5 if i == 0 else 0), i, s) for i, s in enumerate(sentences)], key=lambda x: x[0], reverse=True)
     if scored[0][0] <= 0.5:
         return " ".join(sentences[:max_sentences])
-        
     return " ".join(s[2] for s in sorted(scored[:max_sentences], key=lambda x: x[1]))
 
 
@@ -77,11 +68,11 @@ def evaluate_groundedness(generation: str, context_docs: List[Document], llm: An
     """Audit AI response against source context to detect hallucinations."""
     if not context_docs or not generation:
         return {"score": 100, "status": "GROUNDED", "explanation": "Direct response evaluated."}
-    prompt = ChatPromptTemplate.from_template("Audit if this response is 100% supported by context:\nContext:\n{context}\n\nResponse:\n{generation}\n\nOutput: SCORE: [0-100] STATUS: [GROUNDED/HALLUCINATED] EXPLANATION: [1 sentence]")
+    prompt = ChatPromptTemplate.from_template("Audit if response is supported by context:\nContext:\n{context}\n\nResponse:\n{generation}\n\nOutput: SCORE: [0-100] STATUS: [GROUNDED/HALLUCINATED] EXPLANATION: [1 sentence]")
     try:
         res = (prompt | llm | StrOutputParser()).invoke({"context": "\n".join(f"- {d.page_content}" for d in context_docs), "generation": generation})
         score = int(m.group(1)) if (m := re.search(r'SCORE:\s*(\d+)', res)) else 100
         status = m.group(1).upper() if (m := re.search(r'STATUS:\s*(\w+)', res)) else "GROUNDED"
-        return {"score": score, "status": status, "explanation": m.group(1).strip() if (m := re.search(r'EXPLANATION:\s*(.+)', res)) else "Grounded in documents."}
+        return {"score": score, "status": status, "explanation": m.group(1).strip() if (m := re.search(r'EXPLANATION:\s*(.+)', res)) else "Grounded in context."}
     except Exception:
         return {"score": 95, "status": "GROUNDED", "explanation": "Verified against source excerpts."}
