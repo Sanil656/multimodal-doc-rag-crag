@@ -1,7 +1,8 @@
 """
-Stateful LangGraph CRAG workflow with Context Token Pruning and Hallucination Guardrail.
+High-Speed Stateful LangGraph CRAG workflow with Batch-Parallel Grading and Context Pruning.
 """
 
+import re
 from typing import List, Dict, Any, Optional, Tuple, Literal
 from typing_extensions import TypedDict
 from langchain_core.documents import Document
@@ -33,22 +34,47 @@ class GraphState(TypedDict):
 
 
 def create_crag_graph(retriever: Any, llm: Any, evaluator_llm: Optional[Any] = None, model_name: str = "gemini-1.5-flash"):
-    """Build and compile the LangGraph CRAG state machine."""
+    """Build and compile the high-speed LangGraph CRAG state machine."""
     eval_llm = evaluator_llm or llm
 
+    # 1. High-Speed Vector Retrieval Node
     def retrieve_node(state: GraphState) -> Dict[str, Any]:
         docs = retriever.invoke(state.get("rewritten_query") or state["question"])
         return {"documents": docs, "initial_retrieved": len(docs)}
 
+    # 2. Batch-Parallel Grading & Token Pruning Node (1 single LLM call instead of N sequential calls)
     def grade_and_prune_node(state: GraphState) -> Dict[str, Any]:
         q, docs = state["question"], state.get("documents", [])
-        grader = ChatPromptTemplate.from_template("Is this doc snippet relevant to '{question}'? Answer 'yes' or 'no':\n{document}") | eval_llm | StrOutputParser()
-        relevant = [d for d in docs if "yes" in grader.invoke({"question": q, "document": d.page_content}).lower()]
+        if not docs:
+            return {"documents": [], "relevant_filtered": 0, "raw_tokens": 0, "pruned_tokens": 0, "token_savings_pct": 0.0}
+
+        # Fast Batch Evaluation: Grade all chunks in a single prompt
+        batch_context = "\n\n".join(f"[{i+1}] {d.page_content[:250]}" for i, d in enumerate(docs))
+        batch_prompt = (
+            "Evaluate which document chunks contain facts relevant to answering the question.\n"
+            "Question: {question}\n\n"
+            "Document Chunks:\n{batch_context}\n\n"
+            "Respond with ONLY the comma-separated numbers of relevant chunks (e.g., '1, 2, 4' or 'ALL' or 'NONE'):"
+        )
+        
+        try:
+            res = (ChatPromptTemplate.from_template(batch_prompt) | eval_llm | StrOutputParser()).invoke({"question": q, "batch_context": batch_context}).strip()
+            if "none" in res.lower() and len(res.split()) <= 2:
+                relevant = []
+            elif "all" in res.lower() or not re.findall(r'\d+', res):
+                relevant = docs
+            else:
+                indices = [int(n) - 1 for n in re.findall(r'\d+', res) if 0 <= int(n) - 1 < len(docs)]
+                relevant = [docs[i] for i in indices] if indices else docs
+        except Exception:
+            relevant = docs
+
         pruned, raw_t, pruned_t, savings = compress_and_prune_documents(relevant, query=q) if relevant else ([], 0, 0, 0.0)
         return {"documents": pruned, "relevant_filtered": len(pruned), "raw_tokens": raw_t, "pruned_tokens": pruned_t, "token_savings_pct": savings}
 
+    # 3. Dynamic Query Rewriter Node
     def rewrite_query_node(state: GraphState) -> Dict[str, Any]:
-        rewriter = ChatPromptTemplate.from_template("Rewrite this question to optimize vector search:\nHistory: {history}\nQuestion: {question}\nOutput only the query:") | eval_llm | StrOutputParser()
+        rewriter = ChatPromptTemplate.from_template("Rewrite question to optimize search:\nHistory: {history}\nQuestion: {question}\nQuery:") | eval_llm | StrOutputParser()
         hist = "\n".join(f"{r}: {c}" for r, c in state.get("chat_history", []))
         try:
             nq = rewriter.invoke({"question": state["question"], "history": hist}).strip()
@@ -56,6 +82,7 @@ def create_crag_graph(retriever: Any, llm: Any, evaluator_llm: Optional[Any] = N
             nq = state["question"]
         return {"rewritten_query": nq, "query_rewritten": True}
 
+    # 4. Synthesizer Node
     def generate_node(state: GraphState) -> Dict[str, Any]:
         q, docs, hist = state["question"], state.get("documents", []), state.get("chat_history", [])
         c_str = format_docs_with_metadata(docs) if docs else "No relevant document context found."
@@ -64,6 +91,7 @@ def create_crag_graph(retriever: Any, llm: Any, evaluator_llm: Optional[Any] = N
         in_t, out_t = count_tokens(c_str) + count_tokens(q), count_tokens(ans)
         return {"generation": ans, "input_tokens": in_t, "output_tokens": out_t, "estimated_cost_usd": calculate_cost(in_t, out_t, model_name)}
 
+    # 5. Hallucination Guardrail Node
     def hallucination_guard_node(state: GraphState) -> Dict[str, Any]:
         report = evaluate_groundedness(state.get("generation", ""), state.get("documents", []), eval_llm)
         return {"groundedness_score": report["score"], "hallucination_status": report["status"], "hallucination_explanation": report["explanation"]}
@@ -86,10 +114,10 @@ def create_crag_graph(retriever: Any, llm: Any, evaluator_llm: Optional[Any] = N
 
 
 def stream_langgraph_crag_pipeline(question: str, retriever: Any, chat_history: Optional[List[tuple]] = None, provider: str = "gemini", model_name: Optional[str] = None, temperature: float = 0.2, api_key: Optional[str] = None, base_url: Optional[str] = None) -> Tuple[Any, List[Document], Dict[str, Any]]:
-    """Execute LangGraph CRAG pipeline and stream tokens to caller."""
-    active_m = model_name or ("gemini-1.5-flash" if provider == "gemini" else "llama-3.3-70b-versatile")
+    """Execute LangGraph CRAG pipeline with sub-second retrieval and stream tokens to caller."""
+    active_m = model_name or ("gemini-1.5-flash" if provider == "gemini" else "openai/gpt-oss-120b")
     gen_llm = get_llm(provider, active_m, temperature, api_key, base_url)
-    eval_m = "gemini-1.5-flash" if provider == "gemini" else ("llama-3.1-8b-instant" if provider == "groq" else active_m)
+    eval_m = "openai/gpt-oss-20b" if (provider == "groq" and "openai" in active_m) else active_m
     eval_llm = get_llm(provider, eval_m, 0.0, api_key, base_url)
 
     app = create_crag_graph(retriever, gen_llm, eval_llm, active_m)

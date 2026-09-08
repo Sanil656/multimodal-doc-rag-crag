@@ -40,7 +40,14 @@ with st.sidebar:
     api_key, base_url, model_name = None, "http://localhost:11434", ""
     if provider == "groq":
         api_key = st.text_input("⚡ Groq API Key", value=os.getenv("GROQ_API_KEY", ""), type="password")
-        model_name = st.selectbox("Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b"])
+        model_name = st.selectbox("Model", [
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.6-27b",
+            "groq/compound-mini",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant"
+        ])
     elif provider == "gemini":
         api_key = st.text_input("🔑 Gemini API Key", value=os.getenv("GOOGLE_API_KEY", ""), type="password")
         model_name = st.selectbox("Model", ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"])
